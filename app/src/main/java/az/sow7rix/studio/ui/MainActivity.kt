@@ -101,6 +101,10 @@ class MainActivity : Activity() {
         root.addView(UiKit.menuRowV(this, UiKit.Glyph.SEARCH, "TikTok Analiz", "Bir video linkinin baslik/yazar/kapak bilgisini gosterir", "#5CC8FF") {
             startActivity(Intent(this, AnalyzeActivity::class.java))
         })
+        root.addView(UiKit.spacer(this, 12f))
+        root.addView(UiKit.menuRowV(this, UiKit.Glyph.BOLT, "Claude AI Asistan", "Claude ile sohbet et ve uygulama hakkinda yardim al", "#C4A7FF") {
+            startActivity(Intent(this, ClaudeActivity::class.java))
+        })
 
         root.addView(UiKit.spacer(this, 28f))
         root.addView(UiKit.sectionLabel(this, "HESAP", "#4DD68C"))
@@ -173,7 +177,7 @@ class MainActivity : Activity() {
         // one cikan, hafif parlayan bir rozet hissi.
         val logoHolder = FrameLayout(this)
         logoHolder.addView(UiKit.haloCircle(this, 70f, UiKit.AMBER), FrameLayout.LayoutParams(dp(70f), dp(70f)).apply { gravity = Gravity.CENTER })
-        val logo = ImageView(this).apply { setImageResource(R.mipmap.ic_launcher) }
+        val logo = ImageView(this).apply { setImageResource(R.drawable.ic_launcher) }
         logoHolder.addView(UiKit.avatarRing(this, logo, 54f, UiKit.AMBER), FrameLayout.LayoutParams(dp(54f), dp(54f)).apply { gravity = Gravity.CENTER })
         headerRow.addView(logoHolder, LinearLayout.LayoutParams(dp(70f), dp(70f)))
         val headerText = LinearLayout(this).apply {
