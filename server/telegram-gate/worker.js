@@ -60,7 +60,7 @@ export default {
       catch { return json({ ok: false, reason: "invalid_json" }, 400); }
 
       const uid = String(input?.uid || "").trim();
-      if (!/^\\d{3,15}$/.test(uid)) return json({ ok: false, reason: "bad_uid" }, 400);
+      if (!/^\d{3,15}$/.test(uid)) return json({ ok: false, reason: "bad_uid" }, 400);
       if (!env.BOT_TOKEN) return json({ ok: false, reason: "server_misconfigured" }, 500);
 
       // Re-check channel membership for every AI call. Bot token and provider key stay in Worker secrets.
@@ -125,7 +125,7 @@ export default {
           aiResponse.status === 429 ? 429 : 502);
       }
       const reply = Array.isArray(aiData.content)
-        ? aiData.content.filter(part => part?.type === "text").map(part => part.text || "").join("\\n").trim()
+        ? aiData.content.filter(part => part?.type === "text").map(part => part.text || "").join("\n").trim()
         : "";
       if (!reply) return json({ ok: false, reason: "empty_reply" }, 502);
       return json({ ok: true, model: aiData.model || "claude-haiku-5-5", reply });
