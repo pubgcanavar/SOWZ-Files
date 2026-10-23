@@ -63,7 +63,7 @@ class LoginActivity : Activity() {
         }
 
         val icon = ImageView(this).apply {
-            setImageResource(R.mipmap.ic_launcher)
+            setImageResource(R.drawable.ic_launcher)
             layoutParams = LinearLayout.LayoutParams(dp(96f), dp(96f))
         }
         root.addView(icon)
