@@ -1,0 +1,111 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-35 build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare optional private release key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" &&
+                -n "${ANDROID_KEYSTORE_PASSWORD:-}" &&
+                -n "${ANDROID_KEY_ALIAS:-}" &&
+                -n "${ANDROID_KEY_PASSWORD:-}" ]]; then
+            mkdir -p app/keystore
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/keystore/release.keystore
+            echo "ANDROID_KEYSTORE_PATH=$GITHUB_WORKSPACE/app/keystore/release.keystore" >> "$GITHUB_ENV"
+            echo "RELEASE_SIGNING_READY=true" >> "$GITHUB_ENV"
+            echo "Protected release signing is configured."
+          else
+            echo "RELEASE_SIGNING_READY=false" >> "$GITHUB_ENV"
+            echo "::warning::No private release key configured. APK will use the temporary debug certificate and may not update older installs."
+          fi
+
+      - name: Build APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SIGNING_CERT_SHA256: ${{ secrets.SIGNING_CERT_SHA256 }}
+        run: ./gradlew --no-daemon --stacktrace assembleRelease
+
+      - name: Build Play Store bundle (private release key only)
+        if: env.RELEASE_SIGNING_READY == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SIGNING_CERT_SHA256: ${{ secrets.SIGNING_CERT_SHA256 }}
+        run: ./gradlew --no-daemon --stacktrace bundleRelease
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/Sow7Rix-Studio.apk
+          sha256sum dist/Sow7Rix-Studio.apk | tee dist/SHA256SUMS.txt
+          ls -lh dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Sow7Rix-Studio-APK
+          path: |
+            dist/Sow7Rix-Studio.apk
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect AAB
+        if: env.RELEASE_SIGNING_READY == 'true'
+        run: cp app/build/outputs/bundle/release/app-release.aab dist/Sow7Rix-Studio.aab
+
+      - uses: actions/upload-artifact@v4
+        if: env.RELEASE_SIGNING_READY == 'true'
+        with:
+          name: Sow7Rix-Studio-AAB
+          path: dist/Sow7Rix-Studio.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish latest APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release delete latest --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh release create latest dist/Sow7Rix-Studio.apk dist/SHA256SUMS.txt \
+            --title "Sow7Rix Studio (latest)" \
+            --notes "Otomatik derleme. APK SHA-256 checksum dosyası da eklendi. Anahtar yapılandırılmadıysa bu APK geçici debug imzasıyla oluşturulmuştur."
