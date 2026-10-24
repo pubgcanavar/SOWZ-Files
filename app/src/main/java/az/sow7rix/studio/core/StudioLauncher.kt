@@ -1,67 +1,48 @@
 package az.sow7rix.studio.core
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.widget.Toast
+import androidx.browser.customtabs.CustomTabsIntent
 
-/**
- * TikTok Studio'yu uygulama içindeki WebView/Custom Tab yerine harici tarayıcıda açar.
- * Chrome ilk tercihtir; yoksa bilinen bir harici tarayıcı seçilir.
- */
+/** TikTok is shown as a browser-powered sheet over the app, without an embedded password form. */
 object StudioLauncher {
-    const val STUDIO_URL = "https://www.tiktok.com/tiktokstudio/upload"
-
-    private val browserPriority = listOf(
-        "com.android.chrome",
-        "com.sec.android.app.sbrowser",
-        "org.mozilla.firefox",
-        "com.microsoft.emmx",
-        "com.brave.browser",
-        "com.opera.browser"
-    )
-
-    fun open(ctx: Context, toolbarColorHex: String = "#0B0D12", cardColorHex: String = "#171B24") {
-        val uri = Uri.parse(STUDIO_URL)
-
-        // Launch Chrome directly first; this does not depend on package visibility queries.
+    const val STUDIO_URL="https://www.tiktok.com/tiktokstudio/upload"
+    const val LOGIN_URL="https://www.tiktok.com/login?lang=tr"
+    const val PROFILE_URL="https://www.tiktok.com/"
+    fun open(ctx:Context,toolbarColorHex:String="#080B10",cardColorHex:String="#111722")=openUrl(ctx,STUDIO_URL,toolbarColorHex,cardColorHex)
+    fun openLogin(ctx:Context)=openUrl(ctx,LOGIN_URL)
+    fun openProfile(ctx:Context)=openUrl(ctx,PROFILE_URL)
+    fun openUrl(ctx:Context,url:String,toolbarColorHex:String="#080B10",cardColorHex:String="#111722") {
+        val uri=Uri.parse(url)
         try {
-            val chromeIntent = Intent(Intent.ACTION_VIEW, uri).apply {
-                addCategory(Intent.CATEGORY_BROWSABLE)
-                setPackage("com.android.chrome")
-                if (ctx !is android.app.Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            ctx.startActivity(chromeIntent)
+            val height=(ctx.resources.displayMetrics.heightPixels*0.92f).toInt()
+            val tab=CustomTabsIntent.Builder()
+                .setToolbarColor(Color.parseColor(toolbarColorHex))
+                .setNavigationBarColor(Color.parseColor(cardColorHex))
+                .setShowTitle(true)
+                .setUrlBarHidingEnabled(false)
+                .setInitialActivityHeightPx(height,CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE)
+                .setToolbarCornerRadiusDp(18)
+                .build()
+            tab.launchUrl(ctx,uri)
             return
-        } catch (_: ActivityNotFoundException) {
-            // Chrome isn't installed; try the next browser.
-        } catch (_: Exception) {
-            // Continue to fallback.
+        } catch(_:ActivityNotFoundException) {
+            // Fall back to the default browser if there is no Custom Tabs provider.
+        } catch(_:Exception) {
+            // Browser fallback is safer than collecting credentials in an embedded WebView.
         }
-
         try {
-            val genericIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW,uri).apply {
                 addCategory(Intent.CATEGORY_BROWSABLE)
-            }
-            val handlers = ctx.packageManager.queryIntentActivities(genericIntent, 0)
-                .mapNotNull { it.activityInfo?.packageName }
-                .toSet()
-            val browser = browserPriority.firstOrNull { it in handlers }
-            if (browser != null) {
-                val browserIntent = Intent(Intent.ACTION_VIEW, uri).apply {
-                    addCategory(Intent.CATEGORY_BROWSABLE)
-                    setPackage(browser)
-                    if (ctx !is android.app.Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                ctx.startActivity(browserIntent)
-            } else {
-                Toast.makeText(ctx, "Uyğun brauzer tapılmadı. Chrome-u quraşdırıb yenidən yoxla.", Toast.LENGTH_LONG).show()
-            }
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(ctx, "Chrome və ya başqa brauzer tapılmadı.", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(ctx, "Brauzer açıla bilmədi: ${e.message}", Toast.LENGTH_LONG).show()
+                if(ctx !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch(_:Exception) {
+            Toast.makeText(ctx,"Tarayıcı bulunamadı. Chrome'u kurup tekrar dene.",Toast.LENGTH_LONG).show()
         }
     }
 }

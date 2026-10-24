@@ -34,7 +34,7 @@ const ALLOWED_STATUS = new Set(["creator", "administrator", "member", "restricte
 // (və lazım olsa download_url-u) əl ilə artır, sonra "Save and deploy" bas.
 const VERSIONS = {
   sowz_tracket: { latest_version_code: 1, download_url: "https://t.me/sowzfx" },
-  sow7rix: { latest_version_code: 4, download_url: "https://github.com/pubgcanavar/SOWZ-Files/releases/download/latest/Sow7Rix-Studio.apk" },
+  sow7rix: { latest_version_code: 5, download_url: "https://github.com/pubgcanavar/SOWZ-Files/releases/download/latest/Sow7Rix-Studio.apk" },
 };
 
 export default {

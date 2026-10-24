@@ -355,32 +355,88 @@ object UiKit {
      * onTab(index) her sekmeye basildiginda cagrilir - cagiran taraf gecisi kendi yapar.
      */
     fun bottomNav(ctx: Context, activeIndex: Int, onTab: (Int) -> Unit): LinearLayout {
-        val items = listOf(Triple(Glyph.HOME, "Ana Sayfa", 0), Triple(Glyph.HISTORY, "Gecmis", 1), Triple(Glyph.SETTINGS, "Ayarlar", 2))
         val bar = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Color.parseColor(CARD))
-            setPadding(0, dp(ctx, 10f).toInt(), 0, dp(ctx, 10f).toInt())
-        }
-        items.forEach { (glyph, label, index) ->
-            val active = index == activeIndex
-            val tab = LinearLayout(ctx).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { onTab(index) }
+            gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.parseColor("#141B25"), Color.parseColor(CARD))).apply {
+                cornerRadii = floatArrayOf(dp(ctx,22f),dp(ctx,22f),dp(ctx,22f),dp(ctx,22f),0f,0f,0f,0f)
+                setStroke(dp(ctx,1f).toInt(),Color.parseColor(CARD_BORDER))
             }
-            tab.addView(vectorIcon(ctx, glyph, if (active) AMBER else TEXT_DIM, 20f))
-            tab.addView(TextView(ctx).apply {
-                text = label
-                textSize = 10f
-                setTextColor(Color.parseColor(if (active) AMBER else TEXT_DIM))
+            elevation = dp(ctx,12f)
+            setPadding(dp(ctx,5f).toInt(),dp(ctx,8f).toInt(),dp(ctx,5f).toInt(),dp(ctx,8f).toInt())
+        }
+        val items = listOf(Triple(Glyph.HOME,"Ana sayfa",0),Triple(Glyph.HISTORY,"Geçmiş",1),
+            Triple(Glyph.FOX,"Profil",2),Triple(Glyph.SETTINGS,"Ayarlar",3))
+        items.take(2).forEach { (glyph,label,index) ->
+            bar.addView(navItem(ctx,glyph,label,activeIndex==index) { onTab(index) },
+                LinearLayout.LayoutParams(0,dp(ctx,52f).toInt(),1f))
+        }
+        val plus = FrameLayout(ctx).apply {
+            contentDescription = "Yeni render oluştur"
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { onTab(4) }
+        }
+        val plusCircle = LinearLayout(ctx).apply {
+            gravity = Gravity.CENTER
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.parseColor("#72F0E3"),Color.parseColor("#13B9B3"),Color.parseColor("#087D88"))).apply {
+                shape = GradientDrawable.OVAL
+                setStroke(dp(ctx,3f).toInt(),Color.parseColor(BG))
+            }
+            elevation = dp(ctx,8f)
+            addView(TextView(ctx).apply {
+                text = "+"
+                textSize = 34f
+                setTextColor(Color.parseColor("#061216"))
+                typeface = Typeface.create("sans-serif-light",Typeface.NORMAL)
                 gravity = Gravity.CENTER
-                setPadding(0, dp(ctx, 2f).toInt(), 0, 0)
             })
-            bar.addView(tab, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        plus.addView(plusCircle,FrameLayout.LayoutParams(dp(ctx,56f).toInt(),dp(ctx,56f).toInt(),Gravity.CENTER))
+        pressFeedback(plus)
+        bar.addView(plus,LinearLayout.LayoutParams(0,dp(ctx,58f).toInt(),1f))
+        items.drop(2).forEach { (glyph,label,index) ->
+            bar.addView(navItem(ctx,glyph,label,activeIndex==index) { onTab(index) },
+                LinearLayout.LayoutParams(0,dp(ctx,52f).toInt(),1f))
         }
         return bar
+    }
+
+    private fun navItem(ctx: Context,glyph: Glyph,label: String,active: Boolean,onClick: () -> Unit): LinearLayout {
+        return LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
+            background = if (active) pill("#22323D",14f,ctx) else android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+            contentDescription = label
+            setOnClickListener { onClick() }
+            setPadding(0,dp(ctx,4f).toInt(),0,dp(ctx,4f).toInt())
+            addView(vectorIcon(ctx,glyph,if (active) AMBER else TEXT_DIM,if (active) 21f else 20f))
+            addView(TextView(ctx).apply {
+                text = label
+                textSize = 9f
+                setTextColor(Color.parseColor(if (active) TEXT else TEXT_DIM))
+                gravity = Gravity.CENTER
+                setPadding(0,dp(ctx,3f).toInt(),0,0)
+                maxLines = 1
+            })
+            pressFeedback(this)
+        }
+    }
+
+    private fun pressFeedback(view: View) {
+        view.setOnTouchListener { v,event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.92f).scaleY(0.92f).alpha(0.82f).setDuration(70L).start()
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL ->
+                    v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150L)
+                        .setInterpolator(android.view.animation.OvershootInterpolator(0.55f)).start()
+            }
+            false
+        }
     }
 
     /** Emoji KULLANMAYAN, elle cizilen (vektorel) kucuk ikon seti. Android'in varsayilan

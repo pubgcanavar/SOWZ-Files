@@ -4,10 +4,15 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -18,315 +23,220 @@ import az.sow7rix.studio.R
 import az.sow7rix.studio.core.UpdateCheck
 import kotlin.concurrent.thread
 
-/**
- * Ana menu (Ana Sayfa sekmesi). Acilista zorunlu guncelleme kontrolu yapar: yeni surum
- * varsa kullanici guncelleyene kadar kapatilamayan bir dialog gosterilir.
- */
+/** SOWZ'a özel video çalışma alanı; yerel göstergeler cihazdan okunur. */
 class MainActivity : Activity() {
-
     private var readyCountValue: TextView? = null
+    private val entries = mutableListOf<View>()
 
     companion object {
-        /** Alt navigasyon sekmeleri arasinda gecis - Ana Sayfa/Gecmis/Ayarlar Activity'lerini degistirir. */
         fun navigateTab(from: Activity, index: Int) {
-            val target: Class<*> = when (index) {
+            if (index == 4) {
+                from.startActivity(Intent(from,UploadActivity::class.java))
+                from.overridePendingTransition(android.R.anim.fade_in,android.R.anim.fade_out)
+                return
+            }
+            val target: Class<out Activity> = when(index) {
                 1 -> HistoryActivity::class.java
-                2 -> SettingsActivity::class.java
+                2 -> ProfileActivity::class.java
+                3 -> SettingsActivity::class.java
                 else -> MainActivity::class.java
             }
             if (from.javaClass == target) return
-            from.startActivity(Intent(from, target))
+            from.startActivity(Intent(from,target).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
             from.finish()
+            from.overridePendingTransition(android.R.anim.fade_in,android.R.anim.fade_out)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        buildMenuUi()
-        checkForcedUpdate()
+        window.statusBarColor=Color.parseColor(UiKit.BG)
+        window.navigationBarColor=Color.parseColor(UiKit.BG)
+        buildHome()
+        checkUpdate()
     }
 
     override fun onResume() {
         super.onResume()
-        // Render ekranından dönünce sayaç MediaStore'daki gerçek dosya sayısıyla yenilenir.
-        readyCountValue?.text = readyFileCount().toString()
+        readyCountValue?.text=readyFileCount().toString()
     }
 
-    private fun checkForcedUpdate() {
-        thread {
-            val result = UpdateCheck.check(BuildConfig.VERSION_CODE)
-            if (result is UpdateCheck.Result.UpdateRequired) {
-                runOnUiThread { showForceUpdateDialog(result.info) }
-            }
+    private fun buildHome() {
+        entries.clear()
+        val page=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setBackgroundColor(Color.parseColor(UiKit.BG)) }
+        val scroll=ScrollView(this).apply { clipToPadding=false }
+        val content=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            setPadding(dp(20f),dp(22f),dp(20f),dp(26f))
         }
-    }
-
-    private fun showForceUpdateDialog(info: UpdateCheck.Info) {
-        AlertDialog.Builder(this)
-            .setTitle("Guncelleme gerekli")
-            .setMessage("Sow7Rix Studio'nun yeni bir surumu var. Devam etmek icin guncellemen gerekiyor.")
-            .setCancelable(false)
-            .setPositiveButton("Guncelle") { _, _ ->
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl)))
-                finish()
-            }
-            .show()
-    }
-
-    private fun buildMenuUi() {
-        val pageRoot = FrameLayout(this).apply { setBackgroundColor(Color.parseColor(UiKit.BG)) }
-        val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-
-        val scroll = ScrollView(this)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24f), dp(56f), dp(24f), dp(100f))
-        }
-
-        // ESKI: duz logo + yazi satiri, altinda tek bir kart yoktu - bu yuzden ekran
-        // "bos bir liste" gibi basliyordu. YENI: Kuronai/ORBIX tarzinda gercek bir
-        // "panel" karti - halka-cerceveli logo + GERCEK 3 durum verisi (uydurma takipci
-        // sayisi degil: hazir dosya sayisi, kanal durumu, motor durumu).
-        root.addView(dashboardCard())
-        root.addView(UiKit.spacer(this, 18f))
-
-        // Kanal katilimi SART - bu yuzden en ustte, gozden kacmayacak sekilde.
-        root.addView(channelBanner())
-        root.addView(UiKit.spacer(this, 26f))
-
-        root.addView(UiKit.sectionLabel(this, "YUKLEME"))
-        root.addView(UiKit.spacer(this, 10f))
-        root.addView(quickActionsRow())
-        root.addView(UiKit.spacer(this, 16f))
-        root.addView(UiKit.menuRowV(this, UiKit.Glyph.SEARCH, "TikTok Analiz", "Bir video linkinin baslik/yazar/kapak bilgisini gosterir", "#5CC8FF") {
-            startActivity(Intent(this, AnalyzeActivity::class.java))
-        })
-        root.addView(UiKit.spacer(this, 12f))
-        root.addView(UiKit.menuRowV(this, UiKit.Glyph.BOLT, "Claude AI Asistan", "Claude ile sohbet et ve uygulama hakkinda yardim al", "#C4A7FF") {
-            startActivity(Intent(this, ClaudeActivity::class.java))
-        })
-
-        root.addView(UiKit.spacer(this, 28f))
-        root.addView(UiKit.sectionLabel(this, "HESAP", "#4DD68C"))
-        root.addView(UiKit.spacer(this, 10f))
-        root.addView(UiKit.menuRowV(this, UiKit.Glyph.CHECK, "Telegram Uyeligi Aktif", "@sowzfx kanal uyeligin dogrulandi - erisimin buna bagli", "#4DD68C") {
-            showSetupNeededDialog(
-                "Hesap sistemi",
-                "Sow7Rix Studio erisimi @sowzfx Telegram kanal uyeliginle korunur. TikTok'a yukleme " +
-                "icin ise ayrica giris yapmana gerek yok - 'TikTok'a Yukle' ekraninda once video/kalite " +
-                "hazirlanir, sonra TikTok Studio GERCEK Chrome icinde acilir (Google/Facebook/Apple " +
-                "girisi dahil hepsi orada sorunsuz calisir), orada kendi TikTok hesabinla giris yaparsin."
-            )
-        })
-
-        scroll.addView(root)
-        page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        page.addView(UiKit.bottomNav(this, activeIndex = 0) { index -> navigateTab(this, index) })
-        pageRoot.addView(page, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-
-        // Tek, sade bir ana eylem butonu; sürekli parlayan büyük maskot içeriklerin üstünü örtmüyor.
-        val fab = UiKit.fab(this, "+") { startActivity(Intent(this, UploadActivity::class.java)) }
-        fab.alpha = 0f
-        fab.scaleX = 0.88f
-        fab.scaleY = 0.88f
-        val fabParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.BOTTOM or Gravity.END
-            bottomMargin = dp(76f)
-            marginEnd = dp(18f)
-        }
-        pageRoot.addView(fab, fabParams)
-        fab.post {
-            fab.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .setDuration(220L)
-                .setInterpolator(android.view.animation.OvershootInterpolator(0.65f))
-                .start()
-        }
-
-        setContentView(pageRoot)
-    }
-
-    /** Ana sayfanin ust panel karti: halka-cerceveli logo (+ "aktif" noktasi) ve
-     *  altinda GERCEK 3 durum degeri. Kuronai'nin "ORBIX" profil ekranindaki gibi
-     *  bir ilk-izlenim panosu veriyor ama hicbir sayi uydurma degil:
-     *  - HAZIR DOSYA: Movies/Sow7Rix klasorune GERCEKTEN kaydedilmis islenmis video sayisi
-     *  - KANAL: Telegram kanal uyeligi (uygulamaya girebildiysen zaten dogrulanmis demektir)
-     *  - MOTOR: FFmpeg isleme motorunun hazir/calisir durumda oldugu */
-    private fun dashboardCard(): FrameLayout {
-        val outer = FrameLayout(this)
-
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = UiKit.card(this@MainActivity)
-            elevation = dp(8f).toFloat()
-            setPadding(dp(18f), dp(20f), dp(18f), dp(16f))
-        }
-
-        // Ince, tepede-kirpilmis gradyan "vurgu seridi" - premium panolarda sik gorulen,
-        // kartin bir "urun" oldugunu hissettiren ince detay.
-        card.addView(View(this).apply {
-            background = UiKit.gradientPill(listOf("#FFD774", UiKit.AMBER, "#5CC8FF"), 2f, this@MainActivity).apply {
-                orientation = android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT
-            }
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(3f)).apply {
-            bottomMargin = dp(16f)
-        })
-
-        val headerRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        // Logo halkasinin arkasinda yumusak bir amber "glow" - duz bir ikon yerine
-        // one cikan, hafif parlayan bir rozet hissi.
-        val logoHolder = FrameLayout(this)
-        logoHolder.addView(UiKit.haloCircle(this, 70f, UiKit.AMBER), FrameLayout.LayoutParams(dp(70f), dp(70f)).apply { gravity = Gravity.CENTER })
-        val logo = ImageView(this).apply { setImageResource(R.drawable.ic_launcher) }
-        logoHolder.addView(UiKit.avatarRing(this, logo, 54f, UiKit.AMBER), FrameLayout.LayoutParams(dp(54f), dp(54f)).apply { gravity = Gravity.CENTER })
-        headerRow.addView(logoHolder, LinearLayout.LayoutParams(dp(70f), dp(70f)))
-        val headerText = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(14f), 0, 0, 0)
-        }
-        headerText.addView(TextView(this).apply {
-            text = "Sow7Rix Studio"
+        val header=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL }
+        header.addView(ImageView(this).apply { setImageResource(R.drawable.ic_launcher) },LinearLayout.LayoutParams(dp(47f),dp(47f)))
+        val brand=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(dp(11f),0,0,0) }
+        brand.addView(TextView(this).apply {
+            text="SOWZ STUDIO"; textSize=15f; letterSpacing=0.10f; typeface=Typeface.DEFAULT_BOLD
             setTextColor(Color.parseColor(UiKit.TEXT))
-            textSize = 19f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
         })
-        headerText.addView(TextView(this).apply {
-            text = "v" + BuildConfig.VERSION_NAME + " · Hazir"
-            setTextColor(Color.parseColor(UiKit.TEXT_DIM))
-            textSize = 12f
+        brand.addView(TextView(this).apply {
+            text="VIDEO WORKSPACE · "+BuildConfig.VERSION_NAME; textSize=10f; letterSpacing=0.04f
+            setTextColor(Color.parseColor(UiKit.TEXT_DIM)); setPadding(0,dp(3f),0,0)
         })
-        headerRow.addView(headerText, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        card.addView(headerRow)
-
-        card.addView(UiKit.spacer(this, 16f))
-        card.addView(View(this).apply { setBackgroundColor(Color.parseColor(UiKit.CARD_BORDER)) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1))
-        card.addView(UiKit.spacer(this, 14f))
-
-        val statsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val readyFilesTile = UiKit.statTile(this, readyFileCount().toString(), "HAZIR DOSYA", "#5CC8FF")
-        readyCountValue = readyFilesTile.getChildAt(0) as? TextView
-        statsRow.addView(readyFilesTile, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        statsRow.addView(UiKit.statTile(this, "Aktif", "KANAL", "#4DD68C"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        statsRow.addView(UiKit.statTile(this, "Hazir", "MOTOR", UiKit.AMBER), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        card.addView(statsRow)
-
-        outer.addView(card, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
-        return outer
-    }
-
-    /** Movies/Sow7Rix klasorune daha once kaydedilmis, GERCEKTEN islenmis video sayisi
-     *  (MediaStore uzerinden canli sorgulanir - sahte/sabit bir rakam degil). */
-    private fun readyFileCount(): Int {
-        return try {
-            val projection = arrayOf(android.provider.MediaStore.Video.Media._ID)
-            val selection = "${android.provider.MediaStore.Video.Media.RELATIVE_PATH} LIKE ?"
-            val args = arrayOf("Movies/Sow7Rix%")
-            contentResolver.query(
-                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                projection, selection, args, null
-            )?.use { it.count } ?: 0
-        } catch (e: Exception) {
-            0
+        header.addView(brand,LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
+        val gear=FrameLayout(this).apply {
+            background=GradientDrawable().apply { shape=GradientDrawable.OVAL; setColor(Color.parseColor("#141B25")); setStroke(dp(1f),Color.parseColor(UiKit.CARD_BORDER)) }
+            contentDescription="Ayarlar"; isClickable=true; isFocusable=true
+            addView(UiKit.vectorIcon(this@MainActivity,UiKit.Glyph.SETTINGS,UiKit.TEXT,22f),
+                FrameLayout.LayoutParams(dp(24f),dp(24f),Gravity.CENTER))
+            setOnClickListener { navigateTab(this@MainActivity,3) }
         }
-    }
+        press(gear)
+        header.addView(gear,LinearLayout.LayoutParams(dp(46f),dp(46f)))
+        content.addView(header); entries.add(header); content.addView(UiKit.spacer(this,20f))
 
-    private fun channelBanner(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = UiKit.gradientPill(listOf("#2A1D08", "#1A1203"), 16f, this@MainActivity).apply {
-                setStroke(UiKit.dp(this@MainActivity, 1f).toInt(), Color.parseColor(UiKit.AMBER))
+        val hero=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            background=GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.parseColor("#192A36"),Color.parseColor("#10151E"),Color.parseColor("#10131A"))).apply {
+                cornerRadius=dp(24f); setStroke(dp(1f),Color.parseColor("#2C444F"))
             }
-            elevation = dp(4f).toFloat()
-            isClickable = true
-            isFocusable = true
-            setPadding(dp(16f), dp(14f), dp(16f), dp(14f))
-            setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/sowzfx"))) }
+            elevation=dp(2f).toFloat(); setPadding(dp(18f),dp(18f),dp(18f),dp(17f))
+        }
+        val status=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL }
+        status.addView(View(this).apply {
+            background=GradientDrawable().apply { shape=GradientDrawable.OVAL; setColor(Color.parseColor("#4DD68C")) }
+        },LinearLayout.LayoutParams(dp(7f),dp(7f)))
+        status.addView(TextView(this).apply {
+            text="  WORKSPACE HAZIR"; textSize=10f; letterSpacing=0.13f
+            typeface=Typeface.DEFAULT_BOLD; setTextColor(Color.parseColor("#69DFA7"))
+        })
+        status.addView(View(this),LinearLayout.LayoutParams(0,1,1f))
+        status.addView(TextView(this).apply { text="SOWZ / 01"; textSize=9f; letterSpacing=0.12f; setTextColor(Color.parseColor("#8095A8")) })
+        hero.addView(status); hero.addView(UiKit.spacer(this,18f))
+        val titleRow=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL }
+        val titleCol=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
+        titleCol.addView(TextView(this).apply {
+            text="Hazırla.\nRender et. Paylaş."; textSize=27f; setLineSpacing(dp(1f).toFloat(),1f)
+            setTextColor(Color.parseColor(UiKit.TEXT)); typeface=Typeface.create("sans-serif",Typeface.BOLD)
+        })
+        titleCol.addView(TextView(this).apply {
+            text="Tüm üretim araçların tek yerde."; textSize=12f; setTextColor(Color.parseColor(UiKit.TEXT_DIM)); setPadding(0,dp(8f),0,0)
+        })
+        titleRow.addView(titleCol,LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
+        titleRow.addView(ImageView(this).apply { setImageResource(R.drawable.ic_launcher) },LinearLayout.LayoutParams(dp(74f),dp(74f)))
+        hero.addView(titleRow); hero.addView(UiKit.spacer(this,18f))
+        hero.addView(View(this).apply { setBackgroundColor(Color.parseColor("#2A3946")) },LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(1f)))
+        hero.addView(UiKit.spacer(this,13f))
+        val statRow=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL }
+        statRow.addView(statCell(readyFileCount().toString(),"RENDER","#68CFFF"),LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
+        statRow.addView(statCell("H.264","KODEK",UiKit.AMBER),LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
+        statRow.addView(statCell("AAC","SES","#B6A0FF"),LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
+        hero.addView(statRow)
+        content.addView(hero); entries.add(hero); content.addView(UiKit.spacer(this,23f))
 
-            addView(UiKit.vectorIcon(this@MainActivity, UiKit.Glyph.BELL, UiKit.AMBER, 20f), LinearLayout.LayoutParams(dp(20f), dp(20f)))
-            val textCol = LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(12f), 0, 0, 0)
-            }
-            textCol.addView(TextView(this@MainActivity).apply {
-                text = "@sowzfx kanalina katilmak SART"
-                setTextColor(Color.parseColor(UiKit.TEXT))
-                textSize = 13f
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-            })
-            textCol.addView(TextView(this@MainActivity).apply {
-                text = "Erisimin kanal uyeligine bagli - katilmak icin dokun"
-                setTextColor(Color.parseColor(UiKit.TEXT_DIM))
-                textSize = 11f
-            })
-            addView(textCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            addView(TextView(this@MainActivity).apply {
-                text = "›"
-                setTextColor(Color.parseColor(UiKit.AMBER))
-                textSize = 18f
+        content.addView(UiKit.sectionLabel(this,"ÇALIŞMA ALANI","#50D7D1")); content.addView(UiKit.spacer(this,11f))
+        val render=primaryAction("Yeni render oluştur","Video seç · kaliteyi belirle · dışa aktar",UiKit.Glyph.FILM,"#50D7D1") {
+            startActivity(Intent(this,UploadActivity::class.java))
+        }
+        content.addView(render); entries.add(render); content.addView(UiKit.spacer(this,11f))
+        val toolRow=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
+        val cards=listOf(
+            UiKit.squareCard(this,UiKit.Glyph.UPLOAD,"TIKTOK STUDIO","#FF5D7D") {
+                startActivity(Intent(this,UploadActivity::class.java).putExtra(UploadActivity.EXTRA_DIRECT_STUDIO,true))
+            },
+            UiKit.squareCard(this,UiKit.Glyph.SEARCH,"VİDEO ANALİZ","#70BFFF") { startActivity(Intent(this,AnalyzeActivity::class.java)) },
+            UiKit.squareCard(this,UiKit.Glyph.BOLT,"CLAUDE AI","#B6A0FF") { startActivity(Intent(this,ClaudeActivity::class.java)) }
+        )
+        cards.forEachIndexed { i,v ->
+            press(v)
+            toolRow.addView(v,LinearLayout.LayoutParams(0,dp(124f),1f).apply {
+                when(i) { 0 -> marginEnd=dp(6f); 1 -> { marginStart=dp(3f); marginEnd=dp(3f) }; else -> marginStart=dp(6f) }
             })
         }
+        content.addView(toolRow); entries.add(toolRow); content.addView(UiKit.spacer(this,24f))
+        content.addView(UiKit.sectionLabel(this,"KÜTÜPHANE & HESAP",UiKit.AMBER)); content.addView(UiKit.spacer(this,10f))
+        addTool(content,UiKit.Glyph.HISTORY,"Render geçmişi","Kaydedilmiş videolarını görüntüle","#50D7D1") { navigateTab(this,1) }
+        addTool(content,UiKit.Glyph.FOX,"Profil ve TikTok oturumu","Giriş ve tarayıcı bağlantısını yönet","#70BFFF") { navigateTab(this,2) }
+        addTool(content,UiKit.Glyph.SLIDER,"Render ayarları ve yöntemler","Hız, kalite, FPS ve çıktı boyutu",UiKit.AMBER) { showRenderInfo() }
+        content.addView(UiKit.spacer(this,18f))
+        content.addView(TextView(this).apply {
+            text="SOWZ STUDIO · "+BuildConfig.VERSION_NAME; textSize=10f; letterSpacing=0.14f
+            setTextColor(Color.parseColor(UiKit.TEXT_DIM)); gravity=Gravity.CENTER
+        })
+        scroll.addView(content)
+        page.addView(scroll,LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,0,1f))
+        page.addView(UiKit.bottomNav(this,activeIndex=0) { navigateTab(this,it) })
+        setContentView(page)
+        entries.forEachIndexed { i,v -> animateIn(v,i*38L) }
     }
 
-    /** Competitor uygulamalarin "FFMPEG / UPLOAD / METHODS" 3'lu kart satirina benzer
-     *  hizli erisim satiri. Uc buton da gercek, calisan bir seye gider - sadece gorsel
-     *  suslemenin otesinde:
-     *  - FFMPEG: video sec, kalite isle (FFmpeg motoru), en sonunda TikTok Studio'yu ac
-     *  - UPLOAD: isleme adimini atlayip DOGRUDAN TikTok Studio'yu ac (video zaten hazirsa)
-     *  - METHODS: bizim arastirdigimiz gercek kalite/bitrate onerileri + TikTok'un
-     *    kendi hesap ayari (uydurma bir "bypass" degil, kaynagi gosterilen bilgi) */
-    private fun quickActionsRow(): LinearLayout {
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        row.addView(
-            UiKit.squareCard(this, UiKit.Glyph.FILM, "FFMPEG", "#4DD6C8") {
-                startActivity(Intent(this, UploadActivity::class.java))
-            },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(8f) }
-        )
-        row.addView(
-            UiKit.squareCard(this, UiKit.Glyph.UPLOAD, "UPLOAD", "#FF4D6D") {
-                startActivity(Intent(this, UploadActivity::class.java).putExtra(UploadActivity.EXTRA_DIRECT_STUDIO, true))
-            },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4f); marginEnd = dp(4f) }
-        )
-        row.addView(
-            UiKit.squareCard(this, UiKit.Glyph.BOLT, "METHODS", UiKit.AMBER) {
-                showMethodsInfo()
-            },
-            LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(8f) }
-        )
-        return row
+    private fun addTool(root:LinearLayout,glyph:UiKit.Glyph,title:String,caption:String,accent:String,click:()->Unit) {
+        root.addView(UiKit.menuRowV(this,glyph,title,caption,accent,click))
+        root.addView(UiKit.spacer(this,10f))
     }
-
-    /** Gercek, kaynagi arastirilmis kalite/bitrate onerileri - uydurma bir "gizli yontem"
-     *  degil. Kullanicinin sordugu "mbps mi kbps mi" sorusunun cevabi da burada: bizim
-     *  QualityEngine presetlerimiz kbps cinsinden tanimli (1080p/60fps = 18000 kbps = 18 Mbps). */
-    private fun showMethodsInfo() {
-        AlertDialog.Builder(this)
-            .setTitle("Render modları")
-            .setMessage(
-                "ORİJİNAL DOSYA\nVideoyu yeniden kodlamaz; en hızlı seçenek ve kaynak kalite aynen kalır.\n\n" +
-                "HIZLI RENDER (CRF 22)\nÇözünürlük ve FPS korunur. Daha hızlı kodlar; dosya daha büyük olabilir.\n\n" +
-                "YÜKSEK KALİTE (CRF 16)\nDaha yüksek kalite hedefi, daha büyük dosya ve daha uzun işlem süresi olabilir.\n\n" +
-                "720p / 60 FPS — 9 Mbps\n1080p / 60 FPS — 18 Mbps\n1080p / 60 FPS Maks Kalite — 25 Mbps\n\n" +
-                "Bilgi: 30 FPS videoyu 60 FPS'e çevirmek hareketi gerçek anlamda yeniden üretmez; eksik kareler çoğaltılabilir. TikTok videoyu kendi tarafında yeniden işleyebilir. Son kalite garanti edilemez."
-            )
-            .setPositiveButton("Tamam", null)
-            .show()
+    private fun statCell(value:String,label:String,accent:String)=LinearLayout(this).apply {
+        orientation=LinearLayout.VERTICAL; gravity=Gravity.CENTER
+        addView(TextView(this@MainActivity).apply {
+            text=value; textSize=16f; setTextColor(Color.parseColor(accent)); typeface=Typeface.DEFAULT_BOLD; gravity=Gravity.CENTER
+            if(label=="RENDER") readyCountValue=this
+        })
+        addView(TextView(this@MainActivity).apply {
+            text=label; textSize=9f; letterSpacing=0.12f; setTextColor(Color.parseColor(UiKit.TEXT_DIM)); gravity=Gravity.CENTER
+            setPadding(0,dp(4f),0,0)
+        })
     }
-
-    private fun showSetupNeededDialog(title: String, message: String) {
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton("Tamam", null)
-            .show()
+    private fun primaryAction(title:String,caption:String,glyph:UiKit.Glyph,accent:String,onClick:()->Unit):LinearLayout {
+        val row=LinearLayout(this).apply {
+            orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL
+            background=GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,intArrayOf(Color.parseColor("#183B45"),Color.parseColor("#142631"))).apply {
+                cornerRadius=dp(18f); setStroke(dp(1f),Color.parseColor("#32616B"))
+            }
+            setPadding(dp(14f),dp(14f),dp(14f),dp(14f)); isClickable=true; isFocusable=true; setOnClickListener { onClick() }
+        }
+        row.addView(UiKit.ringIconBadge(this,glyph,accent,48f),LinearLayout.LayoutParams(dp(48f),dp(48f)).apply { marginEnd=dp(13f) })
+        val words=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
+        words.addView(TextView(this).apply { text=title; textSize=15f; typeface=Typeface.DEFAULT_BOLD; setTextColor(Color.parseColor(UiKit.TEXT)) })
+        words.addView(TextView(this).apply { text=caption; textSize=11f; setTextColor(Color.parseColor(UiKit.TEXT_DIM)); setPadding(0,dp(4f),0,0) })
+        row.addView(words,LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f))
+        row.addView(TextView(this).apply { text="›"; textSize=28f; setTextColor(Color.parseColor(accent)) })
+        press(row); return row
     }
-
-    private fun dp(v: Float) = UiKit.dp(this, v).toInt()
+    private fun showRenderInfo() {
+        AlertDialog.Builder(this).setTitle("Render modları").setMessage(
+            "ORİJİNAL DOSYA\nYeniden kodlamadan kopyalar; en hızlı seçenektir.\n\n"+
+            "HIZLI RENDER\nDaha hızlı kodlama; kaynak çözünürlüğü ve FPS korunur. Dosya daha büyük olabilir.\n\n"+
+            "YÜKSEK KALİTE\nDaha düşük CRF ayrıntıyı korur; süre ve dosya boyutu artabilir.\n\n"+
+            "720p / 60 FPS · 9 Mbps\n1080p / 60 FPS · 18 Mbps\n1080p / 60 FPS Maks · 25 Mbps\n\n"+
+            "TikTok videoyu yükleme sonrasında yeniden işleyebilir; sonuç kaynağa ve cihaza bağlıdır."
+        ).setPositiveButton("Anladım",null).show()
+    }
+    private fun checkUpdate() {
+        thread(name="sowz-update-check") {
+            val result=UpdateCheck.check(BuildConfig.VERSION_CODE)
+            if(result is UpdateCheck.Result.UpdateRequired) runOnUiThread {
+                if(!isFinishing) AlertDialog.Builder(this).setTitle("Yeni sürüm hazır")
+                    .setMessage("Sow7Rix Studio için yeni bir sürüm mevcut.")
+                    .setPositiveButton("İndir") { _,_ -> startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(result.info.downloadUrl))) }
+                    .setNegativeButton("Daha sonra",null).show()
+            }
+        }
+    }
+    private fun readyFileCount():Int=try {
+        val projection=arrayOf(MediaStore.Video.Media._ID)
+        val selection="${MediaStore.Video.Media.RELATIVE_PATH} LIKE ?"
+        val args=arrayOf("Movies/Sow7Rix%")
+        contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,projection,selection,args,null)?.use { it.count } ?: 0
+    } catch(_:Exception) { 0 }
+    private fun animateIn(view:View,delay:Long) {
+        view.alpha=0f; view.translationY=dp(10f).toFloat()
+        view.postDelayed({ if(!isFinishing) view.animate().alpha(1f).translationY(0f).setDuration(260L).setInterpolator(DecelerateInterpolator()).start() },delay)
+    }
+    private fun press(view:View) {
+        view.setOnTouchListener { v,event ->
+            when(event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> v.animate().scaleX(0.97f).scaleY(0.97f).alpha(0.88f).setDuration(75L).start()
+                MotionEvent.ACTION_UP,MotionEvent.ACTION_CANCEL -> v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(150L).setInterpolator(android.view.animation.OvershootInterpolator(0.6f)).start()
+            }
+            false
+        }
+    }
+    private fun dp(value:Float):Int=UiKit.dp(this,value).toInt()
 }

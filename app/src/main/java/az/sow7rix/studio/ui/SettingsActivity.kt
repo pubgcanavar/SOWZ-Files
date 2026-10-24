@@ -64,7 +64,7 @@ class SettingsActivity : Activity() {
 
         scroll.addView(content)
         root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        root.addView(UiKit.bottomNav(this, activeIndex = 2) { index -> MainActivity.navigateTab(this, index) })
+        root.addView(UiKit.bottomNav(this, activeIndex = 3) { index -> MainActivity.navigateTab(this, index) })
 
         setContentView(root)
     }

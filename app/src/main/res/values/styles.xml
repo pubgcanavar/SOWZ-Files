@@ -2,13 +2,13 @@
 <resources>
     <style name="AppTheme" parent="android:Theme.DeviceDefault.NoActionBar">
         <item name="android:windowBackground">@color/bg</item>
-        <item name="android:colorAccent">#F2A318</item>
+        <item name="android:colorAccent">#FFB938</item>
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
     </style>
-    <color name="bg">#0A0A0A</color>
-    <color name="amber">#F2A318</color>
-    <color name="card">#17161C</color>
-    <color name="text_primary">#F5F3FF</color>
-    <color name="text_dim">#9A96A8</color>
+    <color name="bg">#080B10</color>
+    <color name="amber">#FFB938</color>
+    <color name="card">#111722</color>
+    <color name="text_primary">#F3F7FC</color>
+    <color name="text_dim">#9AA8BA</color>
 </resources>
