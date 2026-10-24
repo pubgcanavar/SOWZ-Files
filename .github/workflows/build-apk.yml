@@ -52,6 +52,9 @@ jobs:
             echo "::warning::No private release key configured. APK will use the temporary debug certificate and may not update older installs."
           fi
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
       - name: Build APK
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
