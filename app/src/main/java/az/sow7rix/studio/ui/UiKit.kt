@@ -25,14 +25,14 @@ import android.widget.TextView
  * amber/karanlik marka paleti, basili-durum (ripple) geri bildirimi.
  */
 object UiKit {
-    const val BG = "#0A0A0A"
-    const val CARD = "#17161C"
-    const val CARD_BORDER = "#26242E"
-    const val AMBER = "#F2A318"
-    const val AMBER_DIM = "#8A5E0F"
-    const val TEXT = "#F5F3FF"
-    const val TEXT_DIM = "#9A96A8"
-    const val DANGER = "#FF4D4D"
+    const val BG = "#080B10"
+    const val CARD = "#111722"
+    const val CARD_BORDER = "#263141"
+    const val AMBER = "#FFB938"
+    const val AMBER_DIM = "#80551A"
+    const val TEXT = "#F3F7FC"
+    const val TEXT_DIM = "#9AA8BA"
+    const val DANGER = "#FF4D6D"
 
     fun pill(colorHex: String, radiusDp: Float, ctx: Context): GradientDrawable {
         val r = dp(ctx, radiusDp)
@@ -45,7 +45,7 @@ object UiKit {
     /** Kartin biraz daha acik tonu - duz renk yerine ince bir dikey gecis (gradient)
      *  icin ust durak. Tamamen DUZ (flat) renkler, ekrandaki her kutuyu ayni/sablon
      *  hissettiren en buyuk sebeplerden biriydi - gercek hicbir derinlik yoktu. */
-    const val CARD_TOP = "#1E1C26"
+    const val CARD_TOP = "#1B2533"
 
     fun card(ctx: Context): GradientDrawable {
         return GradientDrawable(
