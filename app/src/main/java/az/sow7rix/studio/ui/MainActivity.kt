@@ -96,7 +96,7 @@ class MainActivity : Activity() {
             orientation=LinearLayout.VERTICAL
             background=GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 intArrayOf(Color.parseColor("#192A36"),Color.parseColor("#10151E"),Color.parseColor("#10131A"))).apply {
-                cornerRadius=dp(24f); setStroke(dp(1f),Color.parseColor("#2C444F"))
+                cornerRadius=dp(24f).toFloat(); setStroke(dp(1f),Color.parseColor("#2C444F"))
             }
             elevation=dp(2f).toFloat(); setPadding(dp(18f),dp(18f),dp(18f),dp(17f))
         }
@@ -187,7 +187,7 @@ class MainActivity : Activity() {
         val row=LinearLayout(this).apply {
             orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER_VERTICAL
             background=GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,intArrayOf(Color.parseColor("#183B45"),Color.parseColor("#142631"))).apply {
-                cornerRadius=dp(18f); setStroke(dp(1f),Color.parseColor("#32616B"))
+                cornerRadius=dp(18f).toFloat(); setStroke(dp(1f),Color.parseColor("#32616B"))
             }
             setPadding(dp(14f),dp(14f),dp(14f),dp(14f)); isClickable=true; isFocusable=true; setOnClickListener { onClick() }
         }
