@@ -305,7 +305,9 @@ class MainActivity : Activity() {
             .setMessage(
                 "Bitrate birimi: uygulamada kbps kullaniyoruz ama 1000 kbps = 1 Mbps, yani ayni sey.\n" +
                 "Bizim presetler: 720p/60fps = 9000 kbps (9 Mbps), 1080p/60fps = 18000 kbps (18 Mbps), " +
-                "1080p/120fps = 22000 kbps (22 Mbps).\n\n" +
+                "1080p/60fps Maks Kalite = 25000 kbps (25 Mbps).\n\n" +
+                "Render hızlandırma: daha hızlı x264 preset'i kullanılır; kare çoğaltma/hız eşleme hafif fps filtresiyle yapılır. " +
+                "Daha hızlı işleme, bazı videolarda hareket interpolasyonundan daha az yapay akıcılık verebilir.\n\n" +
                 "TikTok'un KENDI onerdigi degerler (resmi, gizli degil): H.264 kodek (HEVC degil - " +
                 "TikTok HEVC'yi tekrar sikistirip kalite dusuruyor), 1080x1920 dikey, 60fps, " +
                 "10-15 Mbps (30fps icin) / ~25 Mbps'e kadar (60fps icin), ses AAC 256kbps.\n\n" +
