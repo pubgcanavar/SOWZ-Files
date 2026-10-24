@@ -93,7 +93,7 @@ object QualityEngine {
         /** Kaynak videonun GERCEK genislik/yukseklik/fps degerleri (caller tarafindan
          *  MediaMetadataRetriever ile zaten olculmus). Bilinmiyorsa 0 birakilir - o
          *  zaman asagidaki "gereksiz filtreyi atla" optimizasyonu devreye girmez,
-         *  eskisi gibi her zaman scale/pad/interpolate uygulanir (guvenli varsayilan). */
+         *  eskisi gibi her zaman scale/pad/fps uygulanir (guvenli varsayilan). */
         sourceWidth: Int = 0,
         sourceHeight: Int = 0,
         sourceFps: Double = 0.0,
@@ -119,7 +119,7 @@ object QualityEngine {
         } else {
             // Sabit hedef cozunurluk/fps modu.
             // Kaynak GOREK zaten hedef cozunurluk/fps'teyse (ya da fps'i hedeften
-            // dusuk/esitse) scale/pad/minterpolate zincirini tamamen ATLA - bu filtre
+            // dusuk/esitse) scale/pad/fps zincirini tamamen ATLA - bu filtre
             // zinciri kaynak zaten uygunken bile her kareyi yeniden isliyordu, bu da
             // talimatin istedigi "gereksiz kalite kaybini onleme" ilkesine aykiriydi.
             // Filtre atlaninca video SADECE yeniden kodlanir (codec/bitrate hedefine
@@ -129,7 +129,7 @@ object QualityEngine {
             // adimini (scale+pad+interpolate) ortadan kaldirarak kaliteyi daha iyi korur.
             val sourceMatchesTarget = sourceWidth > 0 && sourceHeight > 0 &&
                 sourceWidth == settings.targetWidth && sourceHeight == settings.targetHeight &&
-                (sourceFps <= 0.0 || (sourceFps >= settings.targetFps - 0.5 && sourceFps <= settings.targetFps + 0.5))
+                (sourceFps >= settings.targetFps - 0.5 && sourceFps <= settings.targetFps + 0.5)
             val vf = if (sourceMatchesTarget) {
                 null
             } else {
