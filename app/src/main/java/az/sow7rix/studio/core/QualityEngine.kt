@@ -113,7 +113,7 @@ object QualityEngine {
             // kalite icin daha uzun surer ama mobilde makul; veryfast yerine bunu
             // kullanmak dosya boyutunu ciddi dusurur, kaliteyi degil.
             // Ses: TikTok'un resmi onerisi 256kbps AAC stereo - 160k'dan yukseltildi.
-            "-y -i \"$inputPath\" -c:v libx264 -preset slow -crf ${settings.crf} " +
+            "-y -i \"$inputPath\" -c:v libx264 -preset veryfast -crf ${settings.crf} " +
                 "-pix_fmt yuv420p -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
         } else {
             // Sabit hedef cozunurluk/fps modu.
@@ -137,7 +137,7 @@ object QualityEngine {
                 // (basit kare harmanlama) - akicilik biraz daha az ama GUVENLI, cokmuyor.
                 "scale=${settings.targetWidth}:${settings.targetHeight}:force_original_aspect_ratio=decrease," +
                     "pad=${settings.targetWidth}:${settings.targetHeight}:(ow-iw)/2:(oh-ih)/2," +
-                    "minterpolate=fps=${settings.targetFps}:mi_mode=blend"
+                    "fps=${settings.targetFps}"
             }
             // Yuksek bitrate'lerde H.264 "High" profil + 5.1 seviye olmadan bazi
             // oynaticilar/TikTok'un kendi transcode'u sorun cikarabiliyor - bu yuzden
@@ -145,7 +145,7 @@ object QualityEngine {
             val vfPart = if (vf != null) "-vf \"$vf\" " else ""
             "-y -i \"$inputPath\" $vfPart-b:v ${settings.videoBitrateKbps}k " +
                 "-maxrate ${(settings.videoBitrateKbps * 1.2).toInt()}k -bufsize ${settings.videoBitrateKbps * 2}k " +
-                "-profile:v high -level 5.1 -c:v libx264 -preset medium -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
+                "-profile:v high -level 5.1 -c:v libx264 -preset veryfast -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
         }
 
         return FFmpegKit.executeAsync(
