@@ -35,6 +35,8 @@ object QualityEngine {
         val videoBitrateKbps: Int = 0,
         /** >0 ise CRF (kalite-bazli) modu kullanilir - cozunurluk/fps aynen korunur. */
         val crf: Int = 0,
+        /** Only allow fixed app-defined FFmpeg presets; never populate this from user input. */
+        val encoderPreset: String = "veryfast",
         /** true ise FFmpeg hic calismaz, dosya oldugu gibi kopyalanir (hicbir sikistirma yok). */
         val skipReencode: Boolean = false
     )
@@ -51,7 +53,8 @@ object QualityEngine {
      */
     val PRESETS = listOf(
         Settings(label = "Orijinal Dosya (Degismez)", skipReencode = true),
-        Settings(label = "Orijinal Gorunum, Kucuk Dosya", crf = 16),
+        Settings(label = "Hızlı Render (CRF 22)", crf = 22, encoderPreset = "ultrafast"),
+        Settings(label = "Yüksek Kalite (CRF 16)", crf = 16),
         Settings(label = "720p 60fps", targetWidth = 720, targetHeight = 1280, targetFps = 60, videoBitrateKbps = 9000),
         Settings(label = "1080p 60fps", targetWidth = 1080, targetHeight = 1920, targetFps = 60, videoBitrateKbps = 18000),
         // ESKI "1080p 120fps" secenegi KALDIRILDI: TikTok'un kendi API/upload spesifikasyonu
@@ -108,12 +111,10 @@ object QualityEngine {
         }
 
         val cmd: String = if (settings.crf > 0) {
-            // CRF modu: cozunurluk/fps kaynaktan AYNEN korunur (vf/scale yok), sadece
-            // gereksiz bit'ler atilir. "preset slow" daha kucuk dosya + ayni gorsel
-            // kalite icin daha uzun surer ama mobilde makul; veryfast yerine bunu
-            // kullanmak dosya boyutunu ciddi dusurur, kaliteyi degil.
+            // CRF modu: kaynak çözünürlük/FPS korunur. ultrafast seçeneği daha çabuk
+            // render eder fakat aynı CRF'de çıktı dosyası daha büyük olabilir.
             // Ses: TikTok'un resmi onerisi 256kbps AAC stereo - 160k'dan yukseltildi.
-            "-y -i \"$inputPath\" -c:v libx264 -preset veryfast -crf ${settings.crf} " +
+            "-y -i \"$inputPath\" -c:v libx264 -preset ${settings.encoderPreset} -crf ${settings.crf} " +
                 "-pix_fmt yuv420p -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
         } else {
             // Sabit hedef cozunurluk/fps modu.
@@ -145,7 +146,7 @@ object QualityEngine {
             val vfPart = if (vf != null) "-vf \"$vf\" " else ""
             "-y -i \"$inputPath\" $vfPart-b:v ${settings.videoBitrateKbps}k " +
                 "-maxrate ${(settings.videoBitrateKbps * 1.2).toInt()}k -bufsize ${settings.videoBitrateKbps * 2}k " +
-                "-profile:v high -level 5.1 -c:v libx264 -preset veryfast -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
+                "-profile:v high -level 5.1 -c:v libx264 -preset ${settings.encoderPreset} -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
         }
 
         return FFmpegKit.executeAsync(
