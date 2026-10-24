@@ -72,19 +72,28 @@ jobs:
           SIGNING_CERT_SHA256: ${{ secrets.SIGNING_CERT_SHA256 }}
         run: ./gradlew --no-daemon --stacktrace bundleRelease
 
-      - name: Collect APK
+      - name: Collect APK and make full package ZIP
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk dist/Sow7Rix-Studio.apk
-          sha256sum dist/Sow7Rix-Studio.apk | tee dist/SHA256SUMS.txt
+          cp app/build/outputs/apk/release/app-release.apk ./Sow7Rix-Studio.apk
+          # Package repository source, build scripts, Worker code, docs and the actual APK.
+          # Explicitly exclude local build outputs and any signing materials.
+          zip -qr dist/Sow7Rix-Studio-Full-Package.zip . \
+            -x './.git/*' './dist/*' './.gradle/*' './app/build/*' \
+               './app/keystore/*' './*.keystore' './*.jks' './*.p12' \
+               './Sow7Rix-Studio-Full-Package.zip'
+          rm -f ./Sow7Rix-Studio.apk
+          sha256sum dist/Sow7Rix-Studio.apk dist/Sow7Rix-Studio-Full-Package.zip | tee dist/SHA256SUMS.txt
           ls -lh dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Sow7Rix-Studio-APK
+          name: Sow7Rix-Studio-FULL-PACKAGE
           path: |
+            dist/Sow7Rix-Studio-Full-Package.zip
             dist/Sow7Rix-Studio.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
@@ -109,6 +118,6 @@ jobs:
         run: |
           set -euo pipefail
           gh release delete latest --yes --cleanup-tag >/dev/null 2>&1 || true
-          gh release create latest dist/Sow7Rix-Studio.apk dist/SHA256SUMS.txt \
+          gh release create latest dist/Sow7Rix-Studio.apk dist/Sow7Rix-Studio-Full-Package.zip dist/SHA256SUMS.txt \
             --title "Sow7Rix Studio (latest)" \
-            --notes "Otomatik derleme. APK SHA-256 checksum dosyası da eklendi. Anahtar yapılandırılmadıysa bu APK geçici debug imzasıyla oluşturulmuştur."
+            --notes "APK ve uygulama kaynak kodu ZIP paketi. APK SHA-256 checksum dosyası da eklendi. Anahtar yapılandırılmadıysa bu APK geçici debug imzasıyla oluşturulmuştur."
