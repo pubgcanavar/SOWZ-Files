@@ -26,17 +26,20 @@ class ClaudeActivity : Activity() {
     private lateinit var transcriptScroll: ScrollView
     private lateinit var input: EditText
     private lateinit var sendButton: TextView
+    private lateinit var connectionStatus: TextView
     private var busy = false
 
     companion object {
         private const val CHAT_URL = "https://sowz-tracket-gate.orucovtaleh4499.workers.dev/ai/chat"
+        private const val STATUS_URL = "https://sowz-tracket-gate.orucovtaleh4499.workers.dev/ai/status"
         private const val MAX_PROMPT_CHARS = 2000
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
-        addBubble("assistant", "Salam! Mən Claude AI köməkçisiyəm. Sow7Rix Studio və video keyfiyyəti barədə kömək edə bilərəm.")
+        addBubble("assistant", "Salam! Mən Claude AI köməkçisiyəm. Video renderi, keyfiyyət seçimləri və tətbiq barədə kömək edə bilərəm.")
+        checkClaudeStatus()
     }
 
     private fun buildUi() {
@@ -62,6 +65,13 @@ class ClaudeActivity : Activity() {
             setTextColor(Color.rgb(165, 165, 165))
             setPadding(0, dp(5f), 0, 0)
         })
+        connectionStatus = TextView(this).apply {
+            text = "Claude bağlantısı yoxlanılır…"
+            textSize = 11f
+            setTextColor(Color.rgb(150, 150, 150))
+            setPadding(0, dp(8f), 0, 0)
+        }
+        header.addView(connectionStatus)
         page.addView(header)
 
         transcriptScroll = ScrollView(this).apply {
@@ -110,6 +120,58 @@ class ClaudeActivity : Activity() {
         ).apply { marginStart = dp(8f) })
         page.addView(composer)
         setContentView(page)
+    }
+
+    private fun checkClaudeStatus() {
+        thread(name = "claude-status-check") {
+            val result = try {
+                val connection = (URL(STATUS_URL).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 6000
+                    readTimeout = 6000
+                    setRequestProperty("Accept", "application/json")
+                }
+                try {
+                    val code = connection.responseCode
+                    val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                    val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: "{}"
+                    val response = JSONObject(body)
+                    when {
+                        code in 200..299 && response.optBoolean("configured", false) -> "ready"
+                        code in 200..299 -> response.optString("reason", "not_configured")
+                        else -> "server_unavailable"
+                    }
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (_: Exception) {
+                "network_error"
+            }
+            runOnUiThread {
+                when (result) {
+                    "ready" -> {
+                        connectionStatus.text = "● Claude API hazırdır"
+                        connectionStatus.setTextColor(Color.rgb(77, 214, 140))
+                    }
+                    "anthropic_key_missing" -> {
+                        connectionStatus.text = "Claude API açarı serverə əlavə edilməyib"
+                        connectionStatus.setTextColor(Color.rgb(255, 190, 70))
+                    }
+                    "telegram_bot_token_missing" -> {
+                        connectionStatus.text = "Telegram bot serverdə sazlanmayıb"
+                        connectionStatus.setTextColor(Color.rgb(255, 190, 70))
+                    }
+                    "server_unavailable" -> {
+                        connectionStatus.text = "Server yenilənməyib və ya cavab vermir"
+                        connectionStatus.setTextColor(Color.rgb(255, 190, 70))
+                    }
+                    else -> {
+                        connectionStatus.text = "Bağlantı yoxlanmadı — interneti yoxla"
+                        connectionStatus.setTextColor(Color.rgb(255, 190, 70))
+                    }
+                }
+            }
+        }
     }
 
     private fun sendMessage() {
