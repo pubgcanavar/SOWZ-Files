@@ -51,6 +51,15 @@ export default {
       return json({ ok: true, ...info });
     }
 
+    if (url.pathname === "/ai/status") {
+      const configured = Boolean(env.ANTHROPIC_API_KEY && env.BOT_TOKEN);
+      return json({
+        ok: true,
+        configured,
+        reason: configured ? "ready" : (!env.ANTHROPIC_API_KEY ? "anthropic_key_missing" : "telegram_bot_token_missing")
+      });
+    }
+
     if (url.pathname === "/ai/chat") {
       if (request.method !== "POST") return json({ ok: false, reason: "method_not_allowed" }, 405);
       if (!env.ANTHROPIC_API_KEY) return json({ ok: false, reason: "ai_not_configured" }, 503);
