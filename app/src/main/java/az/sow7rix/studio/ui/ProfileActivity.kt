@@ -43,7 +43,7 @@ class ProfileActivity : Activity() {
         val hero=LinearLayout(this).apply {
             orientation=LinearLayout.VERTICAL; gravity=Gravity.CENTER
             background=GradientDrawable(GradientDrawable.Orientation.TL_BR,intArrayOf(Color.parseColor("#182A36"),Color.parseColor("#10151D"))).apply {
-                cornerRadius=dp(24f); setStroke(dp(1f),Color.parseColor("#2B4852"))
+                cornerRadius=dp(24f).toFloat(); setStroke(dp(1f),Color.parseColor("#2B4852"))
             }
             setPadding(dp(20f),dp(24f),dp(20f),dp(24f))
         }
@@ -95,7 +95,7 @@ class ProfileActivity : Activity() {
     private fun actionButton(label:String,accent:String,onClick:()->Unit):LinearLayout {
         val button=LinearLayout(this).apply {
             orientation=LinearLayout.HORIZONTAL; gravity=Gravity.CENTER
-            background=GradientDrawable().apply { setColor(Color.parseColor("#17232B")); cornerRadius=dp(13f); setStroke(dp(1f),Color.parseColor(accent)) }
+            background=GradientDrawable().apply { setColor(Color.parseColor("#17232B")); cornerRadius=dp(13f).toFloat(); setStroke(dp(1f),Color.parseColor(accent)) }
             isClickable=true; isFocusable=true; setPadding(dp(12f),dp(13f),dp(12f),dp(13f)); setOnClickListener { onClick() }
             addView(TextView(this@ProfileActivity).apply { text=label; textSize=12f; typeface=Typeface.DEFAULT_BOLD; setTextColor(Color.parseColor(UiKit.TEXT)); gravity=Gravity.CENTER })
         }
