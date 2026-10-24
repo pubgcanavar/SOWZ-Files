@@ -128,7 +128,7 @@ object QualityEngine {
             // adimini (scale+pad+interpolate) ortadan kaldirarak kaliteyi daha iyi korur.
             val sourceMatchesTarget = sourceWidth > 0 && sourceHeight > 0 &&
                 sourceWidth == settings.targetWidth && sourceHeight == settings.targetHeight &&
-                (sourceFps <= 0.0 || sourceFps <= settings.targetFps + 0.5)
+                (sourceFps <= 0.0 || (sourceFps >= settings.targetFps - 0.5 && sourceFps <= settings.targetFps + 0.5))
             val vf = if (sourceMatchesTarget) {
                 null
             } else {
