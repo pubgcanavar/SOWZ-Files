@@ -620,9 +620,10 @@ class UploadActivity : Activity() {
         presetButtons.removeAllViews()
         QualityEngine.PRESETS.forEachIndexed { index, preset ->
             val caption = when {
-                preset.skipReencode -> "Hic sikistirma yok, dosya oldugu gibi gider (en buyuk)"
-                preset.crf > 0 -> "Cozunurluk/fps aynen kalir, dosya kucculur, goz fark etmez"
-                else -> "${preset.videoBitrateKbps / 1000} Mbps hedef bitrate"
+                preset.skipReencode -> "Anında kopyalanır; kalite ve boyut aynen korunur."
+                preset.encoderPreset == "ultrafast" -> "En hızlı kodlama; kaynak çözünürlük/FPS korunur, dosya daha büyük olabilir."
+                preset.crf > 0 -> "CRF ${preset.crf}; kaynak çözünürlük ve FPS korunur, boyut içeriğe göre değişir."
+                else -> "${preset.videoBitrateKbps / 1000} Mbps hedef bitrate · yeniden kodlama gerekir."
             }
             val accent = if (preset.skipReencode) "#9A96A8" else UiKit.AMBER
             val row = UiKit.menuRow(this, (index + 1).toString(), preset.label, caption, accent) {
@@ -645,6 +646,7 @@ class UploadActivity : Activity() {
         Thread {
             try {
                 val inputFile = File(cacheDir, "sow7rix_in_${System.currentTimeMillis()}.mp4")
+                currentInputFile = inputFile
                 contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(inputFile).use { output -> input.copyTo(output) }
                 } ?: throw IllegalStateException("Video okunamadi")
@@ -667,7 +669,6 @@ class UploadActivity : Activity() {
                 } catch (_: Exception) { }
 
                 val outputFile = File(cacheDir, "sow7rix_out_${System.currentTimeMillis()}.mp4")
-                currentInputFile = inputFile
                 currentOutputFile = outputFile
 
                 runOnUiThread { overlayStatus.text = preset.label + " isleniyor..." }
@@ -718,6 +719,7 @@ class UploadActivity : Activity() {
                     overlayGlowAnimator?.cancel()
                     overlay.visibility = View.GONE
                     Toast.makeText(this, "Isleme basarisiz: ${e.message}", Toast.LENGTH_LONG).show()
+                    cleanupTempFiles()
                     showPickScreen()
                 }
             }
@@ -731,6 +733,7 @@ class UploadActivity : Activity() {
     private fun finishProcessing(outputFile: File) {
         Thread {
             val displayName = "Sow7Rix_${System.currentTimeMillis()}.mp4"
+            var pendingUri: Uri? = null
             val savedUri = try {
                 val values = ContentValues().apply {
                     put(MediaStore.Video.Media.DISPLAY_NAME, displayName)
@@ -739,19 +742,32 @@ class UploadActivity : Activity() {
                     put(MediaStore.Video.Media.IS_PENDING, 1)
                 }
                 val itemUri = contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
-                if (itemUri != null) {
-                    contentResolver.openOutputStream(itemUri)?.use { out ->
-                        outputFile.inputStream().use { input -> input.copyTo(out) }
-                    }
-                    values.clear()
-                    values.put(MediaStore.Video.Media.IS_PENDING, 0)
-                    contentResolver.update(itemUri, values, null, null)
+                    ?: throw IllegalStateException("MediaStore video kaydı oluşturulamadı")
+                pendingUri = itemUri
+
+                // Null output stream boş bir dosyanın başarılı diye gösterilmesine yol açmasın.
+                val output = contentResolver.openOutputStream(itemUri)
+                    ?: throw IllegalStateException("Video kaydetmek için çıktı akışı açılamadı")
+                output.use { out ->
+                    outputFile.inputStream().use { input -> input.copyTo(out) }
+                }
+
+                val publishValues = ContentValues().apply {
+                    put(MediaStore.Video.Media.IS_PENDING, 0)
+                }
+                if (contentResolver.update(itemUri, publishValues, null, null) <= 0) {
+                    throw IllegalStateException("Kaydedilen video yayınlanamadı")
                 }
                 itemUri
             } catch (e: Exception) {
+                // Hatalı veya yarım kalan MediaStore kaydı galeride görünür kalmasın.
+                pendingUri?.let { try { contentResolver.delete(it, null, null) } catch (_: Exception) { } }
                 null
             }
-            outputFile.delete()
+            try { outputFile.delete() } catch (_: Exception) { }
+            try { currentInputFile?.delete() } catch (_: Exception) { }
+            currentInputFile = null
+            currentOutputFile = null
             runOnUiThread {
                 overlayGlowAnimator?.cancel()
                 overlay.visibility = View.GONE
