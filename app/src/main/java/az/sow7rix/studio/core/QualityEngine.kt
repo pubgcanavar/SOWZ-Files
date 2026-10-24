@@ -115,7 +115,7 @@ object QualityEngine {
             // render eder fakat aynı CRF'de çıktı dosyası daha büyük olabilir.
             // Ses: TikTok'un resmi onerisi 256kbps AAC stereo - 160k'dan yukseltildi.
             "-y -i \"$inputPath\" -c:v libx264 -preset ${settings.encoderPreset} -crf ${settings.crf} " +
-                "-pix_fmt yuv420p -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
+                "-pix_fmt yuv420p -c:a aac -b:a 256k -ar 44100 -af \"aformat=channel_layouts=stereo\" -movflags +faststart \"$outputPath\""
         } else {
             // Sabit hedef cozunurluk/fps modu.
             // Kaynak GOREK zaten hedef cozunurluk/fps'teyse (ya da fps'i hedeften
@@ -146,7 +146,7 @@ object QualityEngine {
             val vfPart = if (vf != null) "-vf \"$vf\" " else ""
             "-y -i \"$inputPath\" $vfPart-b:v ${settings.videoBitrateKbps}k " +
                 "-maxrate ${(settings.videoBitrateKbps * 1.2).toInt()}k -bufsize ${settings.videoBitrateKbps * 2}k " +
-                "-profile:v high -level 5.1 -c:v libx264 -preset ${settings.encoderPreset} -c:a aac -b:a 256k -ar 44100 -ac 2 -movflags +faststart \"$outputPath\""
+                "-profile:v high -level 5.1 -c:v libx264 -preset ${settings.encoderPreset} -c:a aac -b:a 256k -ar 44100 -af \"aformat=channel_layouts=stereo\" -movflags +faststart \"$outputPath\""
         }
 
         return FFmpegKit.executeAsync(
