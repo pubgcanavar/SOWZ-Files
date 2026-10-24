@@ -1,6 +1,5 @@
 package az.sow7rix.studio.ui
 
-import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
@@ -25,7 +24,7 @@ import kotlin.concurrent.thread
  */
 class MainActivity : Activity() {
 
-    private var glowAnimator: ValueAnimator? = null
+    private var readyCountValue: TextView? = null
 
     companion object {
         /** Alt navigasyon sekmeleri arasinda gecis - Ana Sayfa/Gecmis/Ayarlar Activity'lerini degistirir. */
@@ -47,9 +46,10 @@ class MainActivity : Activity() {
         checkForcedUpdate()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        glowAnimator?.cancel()
+    override fun onResume() {
+        super.onResume()
+        // Render ekranından dönünce sayaç MediaStore'daki gerçek dosya sayısıyla yenilenir.
+        readyCountValue?.text = readyFileCount().toString()
     }
 
     private fun checkForcedUpdate() {
@@ -124,21 +124,26 @@ class MainActivity : Activity() {
         page.addView(UiKit.bottomNav(this, activeIndex = 0) { index -> navigateTab(this, index) })
         pageRoot.addView(page, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
 
-        // FAB'in arkasinda yumusak bir amber glow halkasi ve ortasinda tilki maskotu, surekli nefes alir.
-        val foxGlow = UiKit.foxGlow(this, 90f)
-        val glowParams = FrameLayout.LayoutParams(dp(90f), dp(90f)).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            bottomMargin = dp(60f)
-        }
-        pageRoot.addView(foxGlow, glowParams)
-        glowAnimator = UiKit.startGlowPulse(UiKit.foxGlowPulseTarget(foxGlow), minAlpha = 0.12f, maxAlpha = 0.35f)
-
+        // Tek, sade bir ana eylem butonu; sürekli parlayan büyük maskot içeriklerin üstünü örtmüyor.
         val fab = UiKit.fab(this, "+") { startActivity(Intent(this, UploadActivity::class.java)) }
+        fab.alpha = 0f
+        fab.scaleX = 0.88f
+        fab.scaleY = 0.88f
         val fabParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            bottomMargin = dp(75f)
+            gravity = Gravity.BOTTOM or Gravity.END
+            bottomMargin = dp(76f)
+            marginEnd = dp(18f)
         }
         pageRoot.addView(fab, fabParams)
+        fab.post {
+            fab.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(220L)
+                .setInterpolator(android.view.animation.OvershootInterpolator(0.65f))
+                .start()
+        }
 
         setContentView(pageRoot)
     }
@@ -203,7 +208,9 @@ class MainActivity : Activity() {
         card.addView(UiKit.spacer(this, 14f))
 
         val statsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        statsRow.addView(UiKit.statTile(this, readyFileCount().toString(), "HAZIR DOSYA", "#5CC8FF"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val readyFilesTile = UiKit.statTile(this, readyFileCount().toString(), "HAZIR DOSYA", "#5CC8FF")
+        readyCountValue = readyFilesTile.getChildAt(0) as? TextView
+        statsRow.addView(readyFilesTile, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         statsRow.addView(UiKit.statTile(this, "Aktif", "KANAL", "#4DD68C"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         statsRow.addView(UiKit.statTile(this, "Hazir", "MOTOR", UiKit.AMBER), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         card.addView(statsRow)
