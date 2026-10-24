@@ -308,24 +308,17 @@ class MainActivity : Activity() {
      *  QualityEngine presetlerimiz kbps cinsinden tanimli (1080p/60fps = 18000 kbps = 18 Mbps). */
     private fun showMethodsInfo() {
         AlertDialog.Builder(this)
-            .setTitle("Gercek Yontemler")
+            .setTitle("Render modları")
             .setMessage(
-                "Bitrate birimi: uygulamada kbps kullaniyoruz ama 1000 kbps = 1 Mbps, yani ayni sey.\n" +
-                "Bizim presetler: 720p/60fps = 9000 kbps (9 Mbps), 1080p/60fps = 18000 kbps (18 Mbps), " +
-                "1080p/60fps Maks Kalite = 25000 kbps (25 Mbps).\n\n" +
-                "Render hızlandırma: daha hızlı x264 preset'i kullanılır; kare çoğaltma/hız eşleme hafif fps filtresiyle yapılır. " +
-                "Daha hızlı işleme, bazı videolarda hareket interpolasyonundan daha az yapay akıcılık verebilir.\n\n" +
-                "TikTok'un KENDI onerdigi degerler (resmi, gizli degil): H.264 kodek (HEVC degil - " +
-                "TikTok HEVC'yi tekrar sikistirip kalite dusuruyor), 1080x1920 dikey, 60fps, " +
-                "10-15 Mbps (30fps icin) / ~25 Mbps'e kadar (60fps icin), ses AAC 256kbps.\n\n" +
-                "Hesabindan kontrol et: Ayarlar ve gizlilik > Icerik tercihleri > " +
-                "\"Yuksek kaliteli yuklemelere izin ver\" acik olmali - kapaliysa biz ne kadar " +
-                "iyi hazirlarsak hazirlayalim TikTok yine sikistirir."
+                "ORİJİNAL DOSYA\nVideoyu yeniden kodlamaz; en hızlı seçenek ve kaynak kalite aynen kalır.\n\n" +
+                "HIZLI RENDER (CRF 22)\nÇözünürlük ve FPS korunur. Daha hızlı kodlar; dosya daha büyük olabilir.\n\n" +
+                "YÜKSEK KALİTE (CRF 16)\nDaha yüksek kalite hedefi, daha büyük dosya ve daha uzun işlem süresi olabilir.\n\n" +
+                "720p / 60 FPS — 9 Mbps\n1080p / 60 FPS — 18 Mbps\n1080p / 60 FPS Maks Kalite — 25 Mbps\n\n" +
+                "Bilgi: 30 FPS videoyu 60 FPS'e çevirmek hareketi gerçek anlamda yeniden üretmez; eksik kareler çoğaltılabilir. TikTok videoyu kendi tarafında yeniden işleyebilir. Son kalite garanti edilemez."
             )
-            .setPositiveButton("Anladim", null)
+            .setPositiveButton("Tamam", null)
             .show()
     }
-
 
     private fun showSetupNeededDialog(title: String, message: String) {
         AlertDialog.Builder(this)
