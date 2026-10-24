@@ -1,5 +1,9 @@
 name: Build APK
 
+concurrency:
+  group: sow7rix-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
